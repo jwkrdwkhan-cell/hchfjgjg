@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>موسيقى الكروان | Yassin El-Karawan</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FF007A">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js?v=6')
+                    .catch(err => console.log('SW Error:', err));
+            });
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-dark: #06070B;
+            --bg-card: rgba(22, 24, 38, 0.95); /* إزالة الـ Blur لتخفيف الحمل */
+            --neon-pink: #FF007A;
+            --neon-purple: #7000FF;
+            --neon-cyan: #00F5D4;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #FFFFFF;
+            --text-muted: #8E95A5;
+            --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --transition-bounce: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body { 
+            font-family: var(--font-family); 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            overflow: hidden; 
+            height: 100vh; 
+            height: 100dvh; 
+        }
+
+        svg { width: 1.2em; height: 1.2em; fill: currentColor; vertical-align: middle; pointer-events: none; }
+
+        .ambient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.35; }
+        .orb-1 { width: 300px; height: 300px; background: var(--neon-purple); top: -50px; right: -50px; }
+        .orb-2 { width: 350px; height: 350px; background: var(--neon-pink); bottom: -100px; left: -80px; }
+
+        .glass-panel { 
+            background: var(--bg-card); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h1, h2, h3 { font-weight: 900; letter-spacing: -0.5px; }
+        .text-glow { color: var(--text-main); text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
+        .text-accent { background: linear-gradient(135deg, var(--neon-cyan), var(--neon-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .btn-glow { 
+            background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); 
+            border: none; color: white; padding: 14px 28px; font-size: 1.05rem; font-weight: 700; border-radius: 50px; cursor: pointer; box-shadow: 0 8px 20px rgba(255, 0, 122, 0.35); transition: var(--transition-bounce); display: inline-flex; align-items: center; gap: 10px;
+        }
+        .btn-glow:active { transform: scale(0.93); }
+
+        .modal-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; justify-content: center; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s; 
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .dsp-panel { 
+            width: 100%; padding: 30px 25px 40px 25px; border-radius: 36px 36px 0 0; background: #0f111a; border-top: 1px solid var(--neon-pink); transform: translateY(100%); transition: transform 0.4s;
+        }
+        .modal-overlay.active .dsp-panel { transform: translateY(0); }
+        .dsp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .dsp-control { margin-bottom: 22px; }
+        .dsp-label { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: var(--neon-cyan); font-weight: 700;}
+        .dsp-slider { -webkit-appearance: none; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; outline: none; }
+        .dsp-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--neon-cyan); cursor: pointer; box-shadow: 0 0 10px var(--neon-cyan); }
+
+        #app-views { position: relative; width: 100vw; height: 100vh; height: 100dvh; z-index: 1; }
+        .view-screen { position: absolute; inset: 0; width: 100%; height: 100%; overflow-y: auto; }
+
+        #home-view { z-index: 1; padding-bottom: 30px; }
+        .hero-header { padding: 50px 25px 25px 25px; display: flex; align-items: flex-end; background: linear-gradient(to bottom, rgba(112, 0, 255, 0.15), transparent); }
+        .artist-badge { background: rgba(255, 0, 122, 0.15); border: 1px solid rgba(255, 0, 122, 0.3); color: var(--neon-pink); padding: 6px 14px; border-radius: 30px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+        
+        .track-list { padding: 10px 20px 100px 20px; }
+        .track-item { 
+            display: flex; align-items: center; padding: 12px 16px; margin-bottom: 10px; transition: var(--transition-bounce); cursor: pointer; position: relative;
+        }
+        .track-item:active { transform: scale(0.97); }
+        .track-icon { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); display: flex; justify-content: center; align-items: center; margin-left: 15px; flex-shrink: 0; }
+        .track-info { flex-grow: 1; overflow: hidden; }
+        .track-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-artist { font-size: 0.75rem; color: var(--text-muted); }
+        .delete-btn { background: transparent; border: none; color: #ff4757; padding: 8px; cursor: pointer; margin-right: 8px; }
+
+        #player-view { 
+            z-index: 10; background: #0a0b10; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); display: flex; flex-direction: column; justify-content: space-between; border-top: 1px solid var(--glass-border);
+        }
+        #player-view.active { transform: translateY(0); }
+
+        .drag-handle-container { width: 100%; padding: 12px 0 6px 0; }
+        .drag-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px; margin: 0 auto; }
+
+        .player-header { display: flex; justify-content: space-between; padding: 0 20px 10px 20px; align-items: center; }
+        .icon-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; cursor: pointer; width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: var(--transition-bounce); flex-shrink: 0; }
+        .icon-btn:active { transform: scale(0.85); background: rgba(255,255,255,0.15); }
+        .icon-btn.extra-btn.active { color: var(--neon-cyan); border-color: var(--neon-cyan); }
+
+        .filter-btn { background: rgba(0, 245, 212, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 8px 18px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; margin: 0 auto 10px auto; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+
+        .vinyl-container { display: flex; justify-content: center; align-items: center; flex-grow: 1; margin: 10px 0; }
+        
+        /* تحسين استهلاك المعالج الرسومي للأسطوانة */
+        .vinyl-disc { 
+            width: 220px; height: 220px; border-radius: 50%; 
+            background: #0e0f15;
+            box-shadow: inset 0 0 0 8px #151720, inset 0 0 0 16px #0e0f15, inset 0 0 0 24px #151720, 0 15px 35px rgba(0,0,0,0.8);
+            display: flex; justify-content: center; align-items: center; border: 2px solid rgba(255,255,255,0.1); will-change: transform;
+        }
+        .vinyl-cover { width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, var(--neon-cyan) 0%, var(--neon-pink) 70%); border: 3px solid #08090d; display: flex; justify-content: center; align-items: center; }
+        .vinyl-center-hole { width: 12px; height: 12px; border-radius: 50%; background: #06070B; }
+
+        .player-controls-section { padding: 20px; border-radius: 30px 30px 0 0; background: #0e1018; border-top: 1px solid var(--glass-border); }
+        .track-meta-player { text-align: center; margin-bottom: 12px; }
+        .track-meta-player h2 { font-size: 1.2rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        #waveform { width: 100%; height: 40px; margin-bottom: 10px; border-radius: 8px; display: block; }
+        
+        .main-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        .play-btn { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-cyan), #00b894); color: var(--bg-dark); display: flex; justify-content: center; align-items: center; border: none; cursor: pointer; transition: transform 0.2s; }
+        .play-btn:active { transform: scale(0.9); }
+        .play-btn svg { width: 2em; height: 2em; fill: var(--bg-dark); }
+
+        .volume-container { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 20px; margin-bottom: 12px; }
+        .volume-slider { -webkit-appearance: none; flex-grow: 1; height: 4px; background: rgba(255,255,255,0.15); border-radius: 5px; outline: none; }
+        .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--neon-pink); cursor: pointer; }
+        
+        #audio-upload { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+    </div>
+
+    <!-- إضافة controls مخفية لجعل المتصفح يحترم الخلفية -->
+    <audio id="main-audio-player" preload="auto" playsinline controls style="display:none;"></audio>
+    <input type="file" id="audio-upload" multiple accept="audio/*">
+
+    <div class="modal-overlay" id="dsp-modal">
+        <div class="dsp-panel">
+            <div class="dsp-header">
+                <h3 class="text-accent">إعدادات الصوت (DSP)</h3>
+                <button class="icon-btn" id="close-modal"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+            </div>
+            <div class="dsp-control"><div class="dsp-label"><span>عزل الضوضاء</span> <span id="val-noise">0%</span></div><input type="range" class="dsp-slider" id="slider-noise" min="0" max="100" value="0"></div>
+            <div class="dsp-control"><div class="dsp-label"><span>نقاء الصوت</span> <span id="val-clarity">0 dB</span></div><input type="range" class="dsp-slider" id="slider-clarity" min="-10" max="10" value="0"></div>
+            <div class="dsp-control"><div class="dsp-label"><span>تضخيم البيس</span> <span id="val-bass">0 dB</span></div><input type="range" class="dsp-slider" id="slider-bass" min="-10" max="15" value="0"></div>
+        </div>
+    </div>
+
+    <div id="app-views">
+        <div class="view-screen" id="home-view">
+            <div class="hero-header">
+                <div>
+                    <div class="artist-badge"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> حساب موثق</div>
+                    <h1 class="text-glow" style="font-size: 2.2rem;">ياسين الكروان</h1>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">استمع بدون إنترنت وفي الخلفية</p>
+                    <button class="btn-glow" id="native-permission-btn">إضافة أغاني</button>
+                </div>
+            </div>
+            <div class="track-list" id="local-track-list"></div>
+        </div>
+
+        <div class="view-screen" id="player-view">
+            <div>
+                <div class="drag-handle-container"><div class="drag-handle"></div></div>
+                <div class="player-header">
+                    <button class="icon-btn" id="back-to-home-btn"><svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg></button>
+                    <div style="font-weight: 700; font-size: 0.9rem;">مشغل الموسيقى</div>
+                    <button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></button>
+                </div>
+            </div>
+
+            <div class="vinyl-container">
+                <div class="vinyl-disc" id="vinyl-disc">
+                    <div class="vinyl-cover"><div class="vinyl-center-hole"></div></div>
+                </div>
+            </div>
+
+            <div class="player-controls-section">
+                <div class="track-meta-player">
+                    <h2 id="now-playing-title" class="text-glow">اختر أغنية</h2>
+                    <p id="now-playing-artist" style="color: var(--neon-pink); font-size: 0.85rem;">ياسين الكروان</p>
+                </div>
+
+                <div style="text-align: center;">
+                    <button class="filter-btn" id="open-dsp-btn">معدل الصوت الذكي</button>
+                </div>
+
+                <canvas id="waveform"></canvas>
+
+                <div class="volume-container">
+                    <svg viewBox="0 0 24 24" style="color: var(--neon-pink);"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    <input type="range" class="volume-slider" id="main-volume" min="0" max="6" step="0.1" value="1">
+                    <span id="vol-text" style="color: var(--neon-cyan); width: 45px; font-size: 0.75rem; font-weight: bold;">100%</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px;">
+                    <span id="time-current">0:00</span><span id="time-total">0:00</span>
+                </div>
+                <input type="range" class="volume-slider" id="progress-slider" min="0" max="100" value="0" style="margin-bottom: 10px;">
+
+                <div class="main-controls">
+                    <button class="icon-btn extra-btn" id="shuffle-btn"><svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg></button>
+                    <button class="icon-btn" id="prev-btn"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+                    <button class="play-btn" id="play-pause-btn"><svg viewBox="0 0 24 24" id="play-icon"><path d="M8 5v14l11-7z"/></svg></button>
+                    <button class="icon-btn" id="next-btn"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+                    <button class="icon-btn extra-btn" id="repeat-btn"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const iconPlay = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        const iconPause = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+        
+        let tracks = [], currentTrackIndex = -1, isPlaying = false, isRepeat = false, isShuffle = false, isDragging = false; 
+        let audioCtx, audioEl = document.getElementById('main-audio-player'), mediaSource;
+        let bassFilter, clarityFilter, noiseFilter, compressor, gainNode, analyser;
+        let canvas = document.getElementById('waveform'), canvasCtx = canvas.getContext('2d');
+        let animationId, currentObjectUrl, currentRotation = 0, lastDrawTime = 0, wakeLock = null;
+        let db;
+
+        // --- معالجة WakeLock للحفاظ على الشاشة والمعالج ---
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator && !wakeLock) {
+                try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
+            }
+        }
+        function releaseWakeLock() {
+            if (wakeLock) { wakeLock.release(); wakeLock = null; }
+        }
+
+        function initDB(cb) {
+            let req = indexedDB.open("KarawanDB_v3", 1);
+            req.onupgradeneeded = e => { db = e.target.result; if(!db.objectStoreNames.contains('tracks')) db.createObjectStore('tracks', {keyPath: 'id', autoIncrement: true}); };
+            req.onsuccess = e => { db = e.target.result; if(cb) cb(); };
+        }
+
+        function initAudioEngine() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            bassFilter = audioCtx.createBiquadFilter(); bassFilter.type = "lowshelf"; bassFilter.frequency.value = 150;
+            clarityFilter = audioCtx.createBiquadFilter(); clarityFilter.type = "highshelf"; clarityFilter.frequency.value = 3000;
+            noiseFilter = audioCtx.createBiquadFilter(); noiseFilter.type = "lowpass"; noiseFilter.frequency.value = 20000;
+            compressor = audioCtx.createDynamicsCompressor(); compressor.threshold.value = -3; compressor.ratio.value = 12;
+            gainNode = audioCtx.createGain(); gainNode.gain.value = parseFloat(document.getElementById('main-volume').value);
+            analyser = audioCtx.createAnalyser(); analyser.fftSize = 64;
+            mediaSource = audioCtx.createMediaElementSource(audioEl);
+            mediaSource.connect(bassFilter).connect(clarityFilter).connect(noiseFilter).connect(gainNode).connect(compressor).connect(analyser).connect(audioCtx.destination);
+            resizeCanvas();
+        }
+
+        function resizeCanvas() { canvas.width = canvas.parentElement.clientWidth; canvas.height = 40; }
+        window.addEventListener('resize', resizeCanvas);
+
+        document.getElementById('audio-upload').addEventListener('change', e => {
+            let files = Array.from(e.target.files).filter(f => f.type.startsWith('audio/'));
+            if(files.length === 0) return;
+            let trans = db.transaction(['tracks'], 'readwrite'), store = trans.objectStore('tracks');
+            files.forEach(f => store.add({ file: f, name: f.name }));
+            trans.oncomplete = loadTracksFromDB;
+        });
+
+        function loadTracksFromDB() {
+            let req = db.transaction(['tracks'], 'readonly').objectStore('tracks').getAll();
+            req.onsuccess = () => {
+                tracks = (req.result || []).map(i => ({ id: i.id, file: i.file, title: i.name.replace(/\.[^/.]+$/, ""), artist: "ياسين الكروان" }));
+                renderTrackList();
+            };
+        }
+
+        function renderTrackList() {
+            let container = document.getElementById('local-track-list'); container.innerHTML = '';
+            tracks.forEach((track, i) => {
+                let div = document.createElement('div'); div.className = 'track-item glass-panel';
+                div.innerHTML = `<div class="track-icon"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div><div class="track-info"><div class="track-title">${track.title}</div><div class="track-artist">محفوظ محلياً</div></div><button class="delete-btn" onclick="deleteT(${track.id}, event)">حذف</button>`;
+                div.addEventListener('click', () => playTrack(i)); container.appendChild(div);
+            });
+        }
+        window.deleteT = (id, e) => { e.stopPropagation(); db.transaction(['tracks'], 'readwrite').objectStore('tracks').delete(id).onsuccess = loadTracksFromDB; };
+
+        // --- تنظيف الرامات عند الإغلاق ---
+        window.addEventListener('beforeunload', () => { if(currentObjectUrl) URL.revokeObjectURL(currentObjectUrl); });
+
+        function playTrack(index) {
+            if (!tracks[index]) return;
+            initAudioEngine();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl); // تنظيف الرام
+            currentTrackIndex = index;
+            let track = tracks[index];
+            currentObjectUrl = URL.createObjectURL(track.file);
+            audioEl.src = currentObjectUrl;
+            
+            audioEl.play().then(() => {
+                document.getElementById('now-playing-title').innerText = track.title;
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({ title: track.title, artist: track.artist });
+                    navigator.mediaSession.playbackState = 'playing';
+                }
+                navigateTo('player'); requestWakeLock();
+            }).catch(console.error);
+        }
+
+        document.getElementById('play-pause-btn').addEventListener('click', () => {
+            if (!audioEl.src) return playTrack(0);
+            initAudioEngine();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            isPlaying ? audioEl.pause() : audioEl.play();
+        });
+
+        // --- معالجة انقطاع الصوت في الخلفية وعند الخروج ---
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (audioCtx && audioCtx.state === 'suspended' && isPlaying) audioCtx.resume();
+                if (isPlaying) requestWakeLock();
+            } else {
+                // المتصفح لن يوقف الصوت لأن الـ audio tag من نوع controls
+            }
+        });
+
+        audioEl.addEventListener('play', () => { isPlaying = true; document.getElementById('play-pause-btn').innerHTML = iconPause; drawWaveform(); });
+        audioEl.addEventListener('pause', () => { isPlaying = false; document.getElementById('play-pause-btn').innerHTML = iconPlay; releaseWakeLock(); });
+        
+        // --- إصلاح حدث النهاية (ended) في الخلفية ---
+        audioEl.addEventListener('ended', () => {
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            isRepeat ? playTrack(currentTrackIndex) : playNextTrack();
+        });
+
+        audioEl.addEventListener('timeupdate', () => {
+            if (!isDragging && audioEl.duration) {
+                document.getElementById('progress-slider').value = (audioEl.currentTime / audioEl.duration) * 100;
+                document.getElementById('time-current').innerText = formatTime(audioEl.currentTime);
+            }
+        });
+        audioEl.addEventListener('loadedmetadata', () => document.getElementById('time-total').innerText = formatTime(audioEl.duration));
+
+        document.getElementById('progress-slider').addEventListener('input', e => { isDragging = true; document.getElementById('time-current').innerText = formatTime((e.target.value / 100) * audioEl.duration || 0); });
+        document.getElementById('progress-slider').addEventListener('change', e => { audioEl.currentTime = (e.target.value / 100) * audioEl.duration; isDragging = false; });
+
+        document.getElementById('main-volume').addEventListener('input', e => { initAudioEngine(); gainNode.gain.value = e.target.value; document.getElementById('vol-text').innerText = Math.round(e.target.value * 100) + '%'; });
+        
+        let dspModal = document.getElementById('dsp-modal');
+        document.getElementById('open-dsp-btn').addEventListener('click', () => dspModal.classList.add('active'));
+        document.getElementById('close-modal').addEventListener('click', () => dspModal.classList.remove('active'));
+        
+        ['noise', 'clarity', 'bass'].forEach(type => {
+            document.getElementById(`slider-${type}`).addEventListener('input', e => {
+                initAudioEngine(); let v = e.target.value;
+                if(type==='noise') { noiseFilter.frequency.value = 20000 - (v * 180); document.getElementById(`val-${type}`).innerText = v + '%'; }
+                if(type==='clarity') { clarityFilter.gain.value = v; document.getElementById(`val-${type}`).innerText = v + 'dB'; }
+                if(type==='bass') { bassFilter.gain.value = v; document.getElementById(`val-${type}`).innerText = v + 'dB'; }
+            });
+        });
+
+        function playNextTrack() { playTrack(isShuffle ? Math.floor(Math.random() * tracks.length) : (currentTrackIndex + 1) % tracks.length); }
+        function playPrevTrack() { playTrack((currentTrackIndex - 1 + tracks.length) % tracks.length); }
+        document.getElementById('next-btn').addEventListener('click', playNextTrack);
+        document.getElementById('prev-btn').addEventListener('click', playPrevTrack);
+        
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', () => { initAudioEngine(); if(audioCtx.state === 'suspended') audioCtx.resume(); audioEl.play(); });
+            navigator.mediaSession.setActionHandler('pause', () => audioEl.pause());
+            navigator.mediaSession.setActionHandler('previoustrack', playPrevTrack);
+            navigator.mediaSession.setActionHandler('nexttrack', playNextTrack);
+        }
+
+        // --- تحسين استهلاك المعالج للرسم (تقييد الفريمات وإيقافها في الخلفية) ---
+        function drawWaveform(timestamp) {
+            if (!isPlaying) return;
+            animationId = requestAnimationFrame(drawWaveform);
+            
+            // التوقف التام إذا كانت الصفحة مخفية لإنقاذ البطارية
+            if (document.hidden) return; 
+            
+            // تقييد الرسم لـ 20 إطار في الثانية (كل 50ms)
+            if (timestamp - lastDrawTime < 50) return; 
+            lastDrawTime = timestamp;
+
+            let disc = document.getElementById('vinyl-disc');
+            currentRotation = (currentRotation + 2) % 360;
+            if (disc) disc.style.transform = `rotate(${currentRotation}deg)`;
+
+            if (analyser && canvasCtx) {
+                let bufferLength = analyser.frequencyBinCount, dataArray = new Uint8Array(bufferLength);
+                analyser.getByteFrequencyData(dataArray);
+                canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+                let barW = canvas.width / bufferLength, x = 0;
+                for(let i=0; i<bufferLength; i++) {
+                    let barH = (dataArray[i] / 255) * canvas.height;
+                    canvasCtx.fillStyle = '#FF007A'; canvasCtx.fillRect(x, canvas.height - barH, barW - 1, barH);
+                    x += barW;
+                }
+            }
+        }
+
+        document.getElementById('native-permission-btn').addEventListener('click', () => document.getElementById('audio-upload').click());
+        document.getElementById('back-to-home-btn').addEventListener('click', () => navigateTo('home'));
+        function navigateTo(view) { document.getElementById('player-view').classList.toggle('active', view === 'player'); }
+        function formatTime(s) { if(isNaN(s)) return "0:00"; let m = Math.floor(s/60), sec = Math.floor(s%60); return `${m}:${sec<10?'0'+sec:sec}`; }
+
+        window.onload = () => initDB(loadTracksFromDB);
+    </script>
+</body>
+</html>

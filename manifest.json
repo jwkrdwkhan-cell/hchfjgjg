@@ -1,0 +1,24 @@
+{
+  "name": "موسيقى الكروان | Yassin El-Karawan",
+  "short_name": "الكروان",
+  "description": "مشغل موسيقى متطور يعمل بدون إنترنت وفي الخلفية مع تضخيم الصوت",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#06070B",
+  "theme_color": "#FF007A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
